@@ -1,0 +1,32 @@
+# Methods
+A retrospective cohort study analysing routinely collected data between October 2015 and September 2017 was undertaken, to compare differences in outcome from out-of-hospital cardiac arrests, between incidents where a RAT paramedic was present and incidents where a RAT paramedics was not present. Multiple logistic regression was used to adjust for factors that are known to affect outcome from OHCA, and the primary outcome was survival to 30 days.
+
+## Setting
+`r # http://www.yas.nhs.uk/Publications/docs/2016-17/2016-17_Quality_Account_Full.pdf`
+Yorkshire Ambulance Service NHS Trust (YAS) provides 24-hour emergency and healthcare services for the county of Yorkshire, in England. The county has a population of approximately five million, spread over almost 6,000 square miles of varied terrain, including isolated moors and dales, coastline and urban areas. YAS operates 62 ambulance stations, and in 2016--17, received 895,700 emergency calls which resulted in 723,935 attendances by YAS staff.
+
+## Red Arrest Team
+
+The Red Arrest Team (RAT) concept in YAS started thanks to staff in the Hull area taking the initiative and undertaking the role informally in 2013. The following year, based on part on the work of 3RU in Scotland [@clarke_specialist_2014] and an American Heart Association consensus statement on CPR quality and improving outcomes from cardiac arrest [@meaney_cardiopulmonary_2013], formal pilots were conducted in Bradford, Doncaster, Harrogate, Hull, Leeds and York. RAT members were provided with a 1-day training course, with a syllabus focused on team-leadership and other non-technical skills, in addition to doing the basics well (e.g. increasing chest compression fraction, providing high-quality ventilation). Following the pilot phase, a widespread roll-out occured from October 2015 to all existing operational line managers (referred to locally as clinical supervisors). From 2016/17, the RAT course was extended to 3 days, to include additional skills such as post-ROSC care, and included an assessment of competence.
+
+`r # Dispatch SOP v 5.3 April 2017`
+YAS has a pre-determined respsonse to cardiac arrest calls which is compromised of at least two resources; including a conveying resource i.e. an ambulance, and at least one Advanced Life Support (ALS) provider (paramedic). A RAT paramedic is also dispatched if they are available, and are located less than 20 minutes drive from the patient's location.
+
+## Data collection
+Cardiac arrests were identified from the YAS computer aided dispatch (CAD) system via a bespoke database query, and by review of patient care records by a research paramedic. Outcome data was obtained from the YAS clinical audit and business intelligence units as part of their routine reporting of ambulance quality indicators [@nhs_england_ambulance_2015]. The clinical directorate at YAS provided a list of RAT-trained paramedics, along with the date they completed their training, in addition to the callsigns of RAT vehicles. This was cross-referenced against the ambulance staff who had attended a cardiac arrest, to determine if a RAT had attended the incident. When calculating the elapsed time from cardiac arrest to RAT arrival, only the first RAT-trained paramedic's time was included (i.e. if more than one RAT-trained paramedic was in attendance, subsequent RAT arrival times were ignored). Where the cardiac arrest onset time was not known, the time of the emergency call time was used instead.
+
+In addition to the RAT presence and time of arrival, the age, gender and location of the patient was recorded. Other variables included whether bystander CPR occured, whether the OHCA was witnessed, and if so, by whom, the response time of the first YAS response, the presenting rhythm, the prehospital outcome (i.e. whether the patient was transported to hospital or had a Recognition of Life Extinct, ROLE performed on scene) and the hospital outcome, consisting of the presence of ROSC at hospital, and the survival outcome.
+
+## Participants
+All adult (18 years and over) OHCAs entered onto the YAS CAD system between 00:00:00 on the 1st October, 2015 and 23:59:59 on the 30th September, 2017 were included if the patient was resuscitated, and the cause of the arrest was considered to be medical in origin. Incidents were exlcuded if the patient care record could not be located, resuscitation was not commenced or continued by a member of YAS staff, or the cardiac arrest was of traumatic origin or occured in-hospital. In addition, in an attempt to account for appropriate termination of futile resuscitations, that form part of the RAT role, all cardiac arrests where resuscitation was terminated within 10 minutes of RAT arrival on scene, or 10 minutes of the first crew arrival time on scene, were excluded.
+
+## Statistical analysis
+```{r statsanalywording, include=F}
+#Descriptive statistics were used to summarise patient and cardiac arrest characteristics. 
+#Continuous variables were compared using the Mann--Whitney U test, and categorical variables compared using the chi-squared test.
+```
+
+Multivariable logistic regression models were created using the statistics package, R [@R-base], to enable adjustment for known factors that affect OHCA survival and ROSC, including patient age, gender, location, whether the arrest was witnessed and if so, by whom (bystander or ambulance crew), whether bystander CPR was performed, response time and first monitored cardiac rhythm. In addition, the presence or absence of a RAT paramedic was noted.
+
+## Ethics
+Research Ethics Committee approval was not required as this study was classed as a service evaluation.

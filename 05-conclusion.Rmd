@@ -1,0 +1,9 @@
+```{r conclusion, echo=F }
+
+  finalmodel1dfSURV <- readRDS("finalmodel1dfSURV.rds")
+  finalmodel1dfROSC <- readRDS("finalmodel1dfROSC.rds")
+
+```
+# Conclusion
+
+In this study, the presence of a RAT paramedic was associated with a small increase in survival to 30 days (OR `r finalmodel1dfSURV$ORsurvival[17]`, p=`r finalmodel1dfSURV$pval.survival[17]`) and ROSC on arrival at hospital (OR `r finalmodel1dfROSC$ORrosc[16]`, p=`r finalmodel1dfROSC$pval.rosc[16]`), although neither were statistically significant. The magnitude of missing survival outcomes limits confidence in this robustness of this result. Further research into the affect of roles such as RAT, particularly in schemes lead by paramedics, is required.

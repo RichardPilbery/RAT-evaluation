@@ -1,0 +1,41 @@
+```{r discussion,  echo=F}
+
+  summaryTable <- readRDS("sumTable.rds")
+  finalmodel1dfSURV <- readRDS("finalmodel1dfSURV.rds")
+  finalmodel1dfROSC <- readRDS("finalmodel1dfROSC.rds")
+  
+  simpleORdf <- readRDS("simpleORdf.rds")
+
+  ratrowROSC <- finalmodel1dfROSC[finalmodel1dfROSC$Variable == "RAT present",]
+  ratrowSURV <- finalmodel1dfSURV[finalmodel1dfSURV$Variable == "RAT present",]
+  
+  numeratorUK <- summaryTable$sumnoratroscuk[3]+summaryTable$sumratroscuk[3]+summaryTable$sumnoratnoroscuk[3]+summaryTable$sumratnoroscuk[3]
+
+```
+
+# Discussion
+The unadjusted odds ratios suggest that there is no significant increase in the odds of survival to discharge or ROSC at hospital when a RAT is present, compared to OHCAs where no RAT is present (OR `r simpleORdf[1,'Odds ratio']`, 95%CI `r simpleORdf[1,'95% CI']` and OR `r simpleORdf[2,'Odds ratio']`, 95%CI `r simpleORdf[2,'95% CI']` respectively). When adjusting for factors that are known to affect outcome from OHCA using multiple logistic regression, the results from this study indicate that there is an slight increase in the odds of survival to 30 days when a RAT is present (OR `r ratrowSURV$ORsurvival`, 95%CI `r ratrowSURV$CIsurvival`, p=`r ratrowSURV$pval.survival`), and in the odds of ROSC at hospital, compared to OHCA without a RAT present (OR `r ratrowROSC$ORrosc`, 95%CI `r ratrowROSC$CIrosc`, p=`r ratrowROSC$pval.rosc`), although both results are not statistically significant.
+
+Drawing firm conclusions about the primary outcome in this study has been impaired by the high level of missing survival outcome data (`r numeratorUK`/`r summaryTable$sumED[3]`, `r round((numeratorUK/summaryTable$sumED[3])*100,1)`% of outcomes are missing from the subset of patients who were taken to hospital). In addition, there were some significant differences in the distribution of patient demographic and OHCA factors between the RAT attended and non-RAT attended OHCAs. RAT attended OHCAs had younger patients and a higher proportion of bystander witnessed arrests. Conversely, in the non-RAT OHCA group, there was a significantly higher proportion of witnessed arrests by a member of the ambulance service and cardiac arrests that occured in an ambulance (Table \@ref(tab:demotable)).
+
+It appears from Figure \@ref(fig:ratrollout) that there was temporal and spatial variation of the proportion of OHCAs attended by a RAT. The scheme rolled out from the pilot sites in October 2015 onwards, and appeared to reach a peak in Quarter 3 and 4 of 2016. However, the proportion of arrests attended by the RAT declined in 2017. It is possible that this was due to operational presssures resulting in the inappropriate tasking of RAT resources from OHCAs to other emergency calls that could not be covered.
+
+## Comparison with other systems
+Making comparisons with the literature is difficult, given that there is limited robust data from other pre-hospital emergency care teams and their affect on survival outcomes. Most published studies compare physician-based critical care teams to advanced life support (ALS) paramedics. A recent systematic review found scant evidence that these teams offer a survival benefit in OHCA [@von_vopelius-feldt_systematic_2017)], with three of the six papers included in the review finding no benefit in OHCA outcomes. However, as the authors of the review point out, study design, team tasking and type-2 errors all effect the findings of included studies. It is possible that these teams are of greatest benefit post-ROSC or during protracted resuscitation, if they cannot be dispatched immediately.
+
+There are few paramedic-only studies in the UK examining the use of specialist teams to improve outcome from OHCA. The scheme that has inspired at least two others in England, is the Resuscitation Rapid Response Unit (3RU) in Scotland. Originally based in Edinburgh, it has now expanded into all urban conurbations. However, the scheme has only published results from early service evaluations, which demonstrated a ROSC rate of 38% in the Edinburg area in 2010/11, compared to a national mean of 19.2% at the time [@clegg_using_2012].
+
+Paramedics forming the 3RU, were volunteers who received advanced life support-style training in addition to non-technical skills [@clarke_specialist_2014]. However, since the scheme expanded, all training is conducted through paid study leave and staff rostered onto the unit [@short_3ru_2018].
+
+In North East Ambulance Service NHS Trust (NEAS), The cardiac arrest response unit (CARU) was set up in 2014 to improve OHCA outcomes. As with the RAT scheme in YAS, it was based on the work of 3RU. The group was compromised of 11 senior paramedics who provided the majority of coverage, although 11 of the cardiac arrests reported by @mcclelland_service_2016 were attended by a pre-hospital emergency medicine (PHEM) doctor who was also a member of the team. Coverage was limited to a single locality focussed around Newcastle-Upon-Tyne and working hours of 07:00--17:00. Paramedics forming part of the team completed the pre-hospital emergncey resuscitation (SPHERe) course run by Promethes Medical Ltd. and a pre-hospital anaesthesics course run by the Great North Air Ambulance. Maintenance of skills, was achieved by weekely training session compromised of LAS drills and scenarios, although most of these were voluntary and attended in the team's own time. 
+
+During its first year of operation, CARU was activated 333 times, and attended 164 OHCAs. Compared to the rest of NEAS, CARU had a significant increase in survival to discharge and ROSC on arrival at hospital (unadjusted odds ratios of 2.08, 95%CI 1.12--3.84 and 1.74, 95%CI 1.19--2.54) [@mcclelland_service_2016]. 
+
+In London Ambulance Service (LAS), the role of the Advanced Paramedic Practitioner (APP) was created in 2014, and attendance at OHCA is part of the role. The only data published on their performance is from the LAS cardiac arrest report, which shows an increase in ROSC at hospital and survival to discharge figures compared to incidents where no APP was in attendance (34.6% and 12.1%, versus 29.4% and 9.5%). However, as with the previous data, these are unadjusted figures and the report notes that VF/VT was the presenting rhythm in 30.2% of cases attended by an APP compared to 22.0% in other LAS OHCAs [@london_ambulance_service_nhs_trust_cardiac_2017].
+
+
+## Limitations
+
+This study is observational and retrospective, utilising routine data. As such, causal links cannot be made. In addition, there is a significant proportion of data missing form the primary outcome measure, and the primary outcome is not as patient-centred as survival to discharge with a favourable neurological outcome, for example. However, neurological status of the patient at time of discharge (or to 30 days) is not currently collected as part of the quality indicators for ambulance services. To address issues with data reliability, the Trust is embarking on a roll-out of electronic patient care records, which should improve the reliability of data capture, although will not guarantee that outcome data will always be provided by receiving hospitals.
+
+No adjustment was made for the receiving hospital in this analysis, which may impact on patient survival outcomes [@stub_hospital_2011; @stub_hospital_2015]. In addition, only a crude adjustment was made in an attempt to account for the RAT's alternate role of ceasing futile resuscitation attempts, which may have adversely affected the apparent survival benefit of a RAT presence.

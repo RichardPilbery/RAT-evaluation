@@ -1,0 +1,16 @@
+# Introduction {#intro}
+
+Out of hospital cardiac arrest (OHCA) is a major public health problem leading to a substantial number of deaths in Europe. Since routine reporting of cardiac arrest outcomes commenced in the United Kingdom in 2011, it is evident that even in the Utstein group of patients (i.e. those who suffered a witnessed cardiac arrest of presumed cardiac cause, were resuscitated, and found to be in a shockable rhythm on arrival of the ambulance service), survival to discharge rates have remained under 30%, well below that of the best performing European countries [@grasner_eureca_2016].
+
+In response to this, Yorkshire Ambulance Service (YAS) has introduced several initiatives to improve outcome from OHCA including:
+
++ Teaching members of the public, particularly school-age children, Basic Life Support (BLS)
++ Improving telephone triage of 999 calls to ensure that there is a minimum delay in recognition of cardiac arrest and commencement of telephone CPR
++ Introducing Red Arrest Teams across Yorkshire.
+
+The Red Arrest Teams (RATs) consist of operational managers who attend a three-day training course, focusing on the technical and non-technical skills that are required to effectively team lead an OHCA and provide high quality post-resuscitation care. RATs have been deployed throughout Yorkshire, ensuring that all members of the public can benefit from the initiative, and not just one locality. The RAT scheme is also different from some other Services, such as those provided by London and South East Coast ambulance services, in that the training is not at Masters degree level or associated with a prolonged training period, making it inexpensive and pragmatic to run despite high operational pressures and economic constraints.
+
+Following the introduction of the RAT scheme and other initiatives, YAS achieved Utstein survival to discharge rates in excess of 41%, compared to the national average in the same period of 28%, in 2015--2016. However, the relative contribution of each aspect of the initiatives that have been introduced within the Service is unknown.
+
+This study aims to determine the impact of the RATs on outcomes from OHCA. The primary outcome is a comparison of survival to discharge from hospital, between groups of patients where a RAT was present, compared to those with no RAT attendance. The secondary outcome is a comparison of return of spontaneous circulation (ROSC) at hospital between the same groups as the primary outcome.
+

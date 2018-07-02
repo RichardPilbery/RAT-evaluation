@@ -1,0 +1,41 @@
+```{r appendixa, echo=F, message=F, warning=F, cache=F,include=T}
+  
+  format="latex"
+  finalmodel1dfSURVsens = readRDS("finalmodel1dfSURVsen.rds")
+  finalmodel1dfROSCsens = readRDS("finalmodel1dfROSCsen.rds")
+
+```
+
+# Appendix A
+
+## Sensitivity analysis 
+These regression models only contain variables found to be statistically significant in terms of contributing to the regression model. For survival to 30 days, male gender, bystander CPR and arrest to crew arrival time have been omitted, and for ROSC on arrival at hospital, bystanderCPR and location have been removed from the model.
+
+
+```{r appendixaSURV, echo=F, message=F, warning=F, cache=F,include=T}
+
+  kable(finalmodel1dfSURVsens, booktabs = T, format=format, caption="Results of regression modelling of survival to discharge", col.names = c("Variable", "OR", "95% CI", "p-value")) %>%
+    kable_styling("striped",latex_options = "striped") %>%
+   # add_header_above(c(" " = 1, "Survival to discharge" = 3, "ROSC at hospital" = 3)) %>%
+    column_spec(1, width="4cm") %>%
+    group_rows("Witness status", 2, 4) %>%
+    group_rows("Presenting rhythm", 5, 7) %>%
+    group_rows("Location", 8, 11) %>%
+    group_rows("Status at ED", 12, 12) %>%
+    group_rows("RAT",13,14) %>%
+    footnote(general = "NA: Not applicable")
+    
+```
+
+```{r appendixaROSC, echo=F, message=F, warning=F, cache=F, include=T}
+  
+  kable(finalmodel1dfROSCsens, booktabs = T, format=format, caption="Results of regression modelling of ROSC on arrival at hospital", col.names = c("Variable", "OR", "95% CI", "p-value")) %>%
+    kable_styling("striped",latex_options = "striped") %>%
+   # add_header_above(c(" " = 1, "Survival to discharge" = 3, "ROSC at hospital" = 3)) %>%
+    column_spec(1, width="4cm") %>%
+    group_rows("Witness status", 4, 6) %>%
+    group_rows("Presenting rhythm", 7, 9) %>%
+    group_rows("RAT",10,11) %>%
+    footnote(general = "NA: Not applicable")
+
+```

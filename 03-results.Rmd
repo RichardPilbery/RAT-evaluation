@@ -1,0 +1,975 @@
+# Results
+
+```{r resultssetup, echo=F, message=F, warning=F}
+  # Use pandoc for Word documents
+  format="latex"
+
+  library(tidyverse)
+  library(knitr)
+  library(kableExtra)
+  library(broom)
+
+  dataSummary <- readRDS('RAT-eval-final.RDS')
+  
+  missdf <- dataSummary %>%
+    filter(
+      !grepl("0|1",StoD),
+      outcome == "ED"
+    ) %>%
+    mutate(
+      bidata = ifelse(is.na(StoD), 0, 1)
+    ) %>%
+    group_by(bidata) %>%
+    summarise(
+      n = n(),
+      coroner = sum(coroner),
+      died_in_hosp = sum(died_in_hosp)
+    )
+  
+  # Adjustment for 4 additional survival outcomes provided
+  missdf$n[missdf$bidata==0] <- missdf$n[missdf$bidata==0] - 4
+  
+  missdf <- missdf %>%
+    mutate(
+     Total = n - coroner - died_in_hosp
+    )
+  
+  missdf <- missdf %>%
+    rbind(c(999,sum(.$n), sum(.$coroner), sum(.$died_in_hosp), sum(.$Total)))
+
+```
+
+```{R demotable, echo=F, message=F, warning=F, cache=F}
+library(tidyverse)
+
+dataSummary <- dataSummary %>%
+  mutate(
+    survived = as.numeric(survived),
+    ratroscedsurvived = ifelse(outcome=="ED" & rat==1 & rosced==1 & survived==1, 1, 0),
+    ratrosceddied = ifelse(outcome=="ED" & rat==1 & rosced==1 & survived==0, 1, 0),
+    ratroscuk = ifelse(rat & rosced & is.na(survived), 1, 0),
+    ratnoroscedsurvived = ifelse(rat & outcome=="ED" & rosced==0 & survived==1, 1, 0),
+    ratnorosceddied = ifelse(rat & rosced==0 & survived==0 & outcome=="ED", 1, 0),
+    ratnoroscuk = ifelse(rat==1 & rosced==0 & is.na(survived) & outcome=="ED", 1, 0),
+    norosced = ifelse(rosced==0 & outcome=="ED", 1, 0),
+    noratroscedsurvived = ifelse(!rat & rosced & survived==1, 1, 0),
+    noratrosceddied = ifelse(!rat & rosced & survived==0, 1, 0),
+    noratroscuk = ifelse(!rat & rosced & is.na(survived), 1, 0),
+    noratnoroscedsurvived = ifelse(!rat & outcome=="ED" & rosced==0 & survived==1, 1, 0),
+    noratnorosceddied = ifelse(!rat & rosced==0 & survived==0 & outcome=="ED", 1, 0),
+    noratnoroscuk = ifelse(!rat & rosced==0 & is.na(survived) & outcome=="ED", 1, 0),
+    ratrole = ifelse(rat & rat2role <= 10 & outcome=="ROLE", 1, 0),
+    noratrole = ifelse(!rat & crew2role <= 10 & outcome=="ROLE", 1, 0),
+    rolenoresus10 = ifelse(ratrole | noratrole, 1, 0),
+    rathospsurvived = ifelse(outcome=="ED" & rat==1 & survived==1, 1, 0),
+    rathospdied = ifelse(outcome=="ED" & rat==1 & survived==0, 1, 0),
+    rathospunk = ifelse(outcome=="ED" & rat==1 & is.na(survived), 1, 0),
+    norathospsurvived = ifelse(outcome=="ED" & rat==0 & survived==1, 1, 0),
+    norathospdied = ifelse(outcome=="ED" & rat==0 & survived==0, 1, 0),
+    norathospunk = ifelse(outcome=="ED" & rat==0 & is.na(survived), 1, 0)
+    
+  )
+
+summaryFn <- function(dataSummary, expr = "") {
+  # https://stackoverflow.com/questions/46109369/unable-to-get-function-enquo-working-with-reactive-variables-dplyr-verbs-in
+  
+  # Need to provide numbers for RAT - ROSCED - SURVIVE, RAT-ROSCED-DIED, RAT-ROSCED-UK, RAT-NOROSC-SURVIVE etc.
+
+  if(expr != "") {
+    summary <- dataSummary %>%
+      group_by_(expr) %>%
+      summarise(
+        n = n(),
+        propn = round((n/nrow(dataSummary))*100,1),
+        medage = median(age),
+        UQRage = fivenum(age)[4],
+        LQRage = fivenum(age)[2],
+        medarrest2crew = median(arrest2crew, na.rm = T),
+        UQRarrest2crew = fivenum(arrest2crew, na.rm = T)[4],
+        LQRarrest2crew = fivenum(arrest2crew)[2],
+        medarrest2rat = ifelse(first(rat)==1,median(arrest2rat, na.rm = T),NA),
+        UQRarrest2rat = ifelse(first(rat)==1,fivenum(arrest2rat, na.rm = T)[4],NA),
+        LQRarrest2rat = ifelse(first(rat)==1,fivenum(arrest2rat, na.rm = T)[2],NA),
+        malenum = sum(gender == "male"),
+        male = round((sum(gender == "male")/n)*100,1),
+        sumfemale = sum(gender == "female"),
+        female = round((sum(gender == "female")/n)*100,1),
+        sumwitnessedbyEMS = sum(witness[arrest2crew<0]),
+        propwitnessedbyEMS = round((sum(witness[arrest2crew<0])/n)*100,1),
+        sumwitnessedbyBY = sum(witness)-sumwitnessedbyEMS,
+        propwitnessedbyBY = round((sumwitnessedbyBY/n)*100,1),
+        sumwitnessed = sum(witness),
+        witnessed = round((sum(witness)/n)*100,1),
+        sumunwitnessed = sum(witness == 0),
+        unwitnessed = round((sumunwitnessed/n)*100,1),
+        sumbystandercpr = sum(bystcpr),
+        bystandercpr = round((sum(bystcpr)/n)*100,1),
+        sumrosced = sum(rosced),
+        sumnorosced = sum(norosced),
+        proprosced = round((sum(rosced)/n)*100,1),
+        sumsurvived = sum(survived, na.rm=T),
+        propsurvived = round((sum(as.numeric(survived), na.rm=T)/n)*100,1),
+        sumsurvivedNK = sum(is.na(survived)),
+        propsurvivedNK = round((sumsurvivedNK/n)*100,1),
+        sumROLE = sum(outcome == "ROLE" & rolenoresus10 == 0),
+        propROLE = round((sum(outcome == "ROLE" & rolenoresus10 == 0)/n)*100,1),
+        sumROLEno10 = sum(outcome == "ROLE" & rolenoresus10 == 1),
+        propROLEno10 = round((sum(outcome == "ROLE" & rolenoresus10 == 1)/n)*100,1),
+        sumED = sum(outcome == "ED"),
+        propED = round((sum(outcome == "ED")/n)*100,1),
+        sumdied = sum(survived == 0, na.rm=T)-sumROLE,
+        propdied = round((sumdied/n)*100,1),
+        locHome = sum(loc == "private"),
+        proplocHome = round((locHome/n)*100,1),
+        locPublic = sum(loc == "public"),
+        proplocPublic = round((locPublic/n)*100,1),
+        locAmb = sum(loc == "amb"),
+        proplocAmb = round((locAmb/n)*100,1),
+        locNH = sum(loc == "nh"),
+        proplocNH = round((locNH/n)*100,1),
+        rhythmShock = sum(rhythm == "shockable"),
+        proprhythmShock = round((rhythmShock/n)*100,1),
+        rhythmPEA = sum(rhythm == "pea"),
+        proprhythmPEA = round((rhythmPEA/n)*100,1),
+        rhythmASYS = sum(rhythm == "asystole"),
+        proprhythmASYS = round((rhythmASYS/n)*100,1),
+        sumratroscedsurvived = sum(ratroscedsurvived, na.rm = T),
+        sumratrosceddied = sum(ratrosceddied, na.rm=T),
+        sumratroscuk = sum(ratroscuk, na.rm=T),
+        sumratnoroscedsurvived = sum(ratnoroscedsurvived, na.rm = T),
+        sumratnorosceddied = sum(ratnorosceddied, na.rm=T),
+        sumratnoroscuk = sum(ratnoroscuk, na.rm=T),
+        sumnoratroscedsurvived = sum(noratroscedsurvived, na.rm = T),
+        sumnoratrosceddied = sum(noratrosceddied, na.rm=T),
+        sumnoratroscuk = sum(noratroscuk, na.rm=T),
+        sumnoratnoroscedsurvived = sum(noratnoroscedsurvived, na.rm = T),
+        sumnoratnorosceddied = sum(noratnorosceddied, na.rm=T),
+        sumnoratnoroscuk = sum(noratnoroscuk, na.rm=T),
+        sumhospsurvived = ifelse(first(rat)==1,sum(rathospsurvived, na.rm=T),sum(norathospsurvived, na.rm=T)),
+        prophospsurvived = round((sumhospsurvived/n)*100,1),
+        sumhospdied = ifelse(first(rat)==1,sum(rathospdied, na.rm=T),sum(norathospdied, na.rm=T)),
+        prophospdied = round((sumhospdied/n)*100,1),
+        sumhospunk = ifelse(first(rat)==1,sum(rathospunk, na.rm=T),sum(norathospunk, na.rm=T)),
+        prophospunk = round((sumhospunk/n)*100,1)
+
+      ) # %>%
+    #gather(Variables, Value, -rat) %>%
+    #spread(rat, Value, convert = F) 
+  } 
+  else {
+    summary <- dataSummary %>%
+      summarise(
+        rat = "All",
+        n = n(),
+        propn = round((n/nrow(dataSummary))*100,1),
+        medage = median(age),
+        UQRage = fivenum(age)[4],
+        LQRage = fivenum(age)[2],
+        medarrest2crew = median(arrest2crew, na.rm = T),
+        UQRarrest2crew = fivenum(arrest2crew, na.rm = T)[4],
+        LQRarrest2crew = fivenum(arrest2crew)[2],
+        medarrest2rat = ifelse(rat=="All",median(arrest2rat, na.rm = T),"N/A"),
+        UQRarrest2rat = ifelse(rat=="All",fivenum(arrest2rat, na.rm = T)[4],"N/A"),
+        LQRarrest2rat = ifelse(rat=="All",fivenum(arrest2rat, na.rm = T)[2],"N/A"),
+        malenum = sum(gender == "male"),
+        male = round((sum(gender == "male")/n)*100,1),
+        sumfemale = sum(gender == "female"),
+        female = round((sum(gender == "female")/n)*100,1),
+        sumwitnessedbyEMS = sum(witness[arrest2crew<0]),
+        propwitnessedbyEMS = round((sum(witness[arrest2crew<0])/n)*100,1),
+        sumwitnessedbyBY = sum(witness)-sumwitnessedbyEMS,
+        propwitnessedbyBY = round((sumwitnessedbyBY/n)*100,1),
+        sumwitnessed = sum(witness),
+        witnessed = round((sum(witness)/n)*100,1),
+        sumunwitnessed = sum(witness == 0),
+        unwitnessed = round((sumunwitnessed/n)*100,1),
+        sumbystandercpr = sum(bystcpr),
+        bystandercpr = round((sum(bystcpr)/n)*100,1),
+        sumrosced = sum(rosced),
+        sumnorosced = sum(norosced),
+        proprosced = round((sum(rosced)/n)*100,1),
+        sumsurvived = sum(as.numeric(survived), na.rm=T),
+        propsurvived = round((sum(as.numeric(survived), na.rm=T)/n)*100,1),
+        sumsurvivedNK = sum(is.na(survived)),
+        propsurvivedNK = round((sumsurvivedNK/n)*100,1),
+        sumROLE = sum(outcome == "ROLE" & rolenoresus10 == 0),
+        propROLE = round((sum(outcome == "ROLE" & rolenoresus10 == 0)/n)*100,1),
+        sumROLEno10 = sum(outcome == "ROLE" & rolenoresus10 == 1),
+        propROLEno10 = round((sum(outcome == "ROLE" & rolenoresus10 == 1)/n)*100,1),
+        sumED = sum(outcome == "ED"),
+        propED = round((sum(outcome == "ED")/n)*100,1),
+        sumdied = sum(survived == 0, na.rm=T)-sumROLE-sumROLEno10,
+        propdied = round((sumdied/n)*100,1),
+        locHome = sum(loc == "private"),
+        proplocHome = round((locHome/n)*100,1),
+        locPublic = sum(loc == "public"),
+        proplocPublic = round((locPublic/n)*100,1),
+        locAmb = sum(loc == "amb"),
+        proplocAmb = round((locAmb/n)*100,1),
+        locNH = sum(loc == "nh"),
+        proplocNH = round((locNH/n)*100,1),
+        rhythmShock = sum(rhythm == "shockable"),
+        proprhythmShock = round((rhythmShock/n)*100,1),
+        rhythmPEA = sum(rhythm == "pea"),
+        proprhythmPEA = round((rhythmPEA/n)*100,1),
+        rhythmASYS = sum(rhythm == "asystole"),
+        proprhythmASYS = round((rhythmASYS/n)*100,1),
+        sumratroscedsurvived = sum(ratroscedsurvived, na.rm = T),
+        sumratrosceddied = sum(ratrosceddied, na.rm=T),
+        sumratroscuk = sum(ratroscuk, na.rm=T),
+        sumratnoroscedsurvived = sum(ratnoroscedsurvived, na.rm = T),
+        sumratnorosceddied = sum(ratnorosceddied, na.rm=T),
+        sumratnoroscuk = sum(ratnoroscuk, na.rm=T),
+        sumnoratroscedsurvived = sum(noratroscedsurvived, na.rm = T),
+        sumnoratrosceddied = sum(noratrosceddied, na.rm=T),
+        sumnoratroscuk = sum(noratroscuk, na.rm=T),
+        sumnoratnoroscedsurvived = sum(noratnoroscedsurvived, na.rm = T),
+        sumnoratnorosceddied = sum(noratnorosceddied, na.rm=T),
+        sumnoratnoroscuk = sum(noratnoroscuk, na.rm=T),
+        sumhospsurvived = sum(survived, na.rm=T),
+        prophospsurvived = round((sumhospsurvived/n)*100,1),
+        sumhospdied = sum(outcome=="ED" & survived == 0, na.rm=T),
+        prophospdied = round((sumhospdied/n)*100,1),
+        sumhospunk = sum(outcome=="ED" & is.na(survived)),
+        prophospunk = round((sumhospunk/n)*100,1)
+      )# %>%
+    #gather(Variables, Value)
+  }
+  
+  # summary <- summary %>%
+  #    arrange(Variables)
+  
+  return(summary)
+}
+
+summaryTable <- rbind(summaryFn(dataSummary, "rat"), summaryFn(dataSummary)) 
+
+saveRDS(summaryTable, "sumTable.rds")
+
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+
+stats <- function(df, df1, item) {
+  # df is the dataSummary dataframe with 31 variables
+  # df is the summaryTable, which has already calculated sums
+  #print("Inside stats")
+  
+  options(scipen=999)
+  subitem = ""
+  wilcox = FALSE
+  
+  if(item == "rhythm") {
+     # print("Inside rhythm")
+      rat <- df1[df1$rat == 1,]
+      norat <- df1[df1$rat == 0,]
+    
+      xdf <- data.frame(
+        varInt = c(rat$rhythmShock, rat$rhythmASYS, rat$rhythmPEA),
+        novarInt = c(norat$rhythmShock, norat$rhythmASYS, norat$rhythmPEA),
+        stringsAsFactors = F
+      )
+      #print(xdf)
+      chi = chisq.test(xdf)
+      #print(specify_decimal(chi$p.value,2))
+    return(specify_decimal(chi$p.value,2))
+  }
+  
+    if(item == "location") {
+     # print("Inside location")
+      rat <- df1[df1$rat == 1,]
+      norat <- df1[df1$rat == 0,]
+    
+      xdf <- data.frame(
+        varInt = c(rat$locAmb, rat$locHome, rat$locPublic, rat$locNH),
+        novarInt = c(norat$locAmb, norat$locHome, norat$locPublic, norat$locNH),
+        stringsAsFactors = F
+      )
+      #print(xdf)
+      chi = chisq.test(xdf)
+      #print(specify_decimal(chi$p.value,2))
+    return(specify_decimal(chi$p.value,2))
+    }
+  
+    if(item == "witnessed") {
+     # print("Inside location")
+      rat <- df1[df1$rat == 1,]
+      norat <- df1[df1$rat == 0,]
+    
+      xdf <- data.frame(
+        varInt = c(rat$sumunwitnessed, rat$sumwitnessedbyBY, rat$sumwitnessedbyEMS),
+        novarInt = c(norat$sumunwitnessed, norat$sumwitnessedbyBY, norat$sumwitnessedbyEMS),
+        stringsAsFactors = F
+      )
+      #print(xdf)
+      chi = chisq.test(xdf)
+      #print(specify_decimal(chi$p.value,2))
+    return(specify_decimal(chi$p.value,2))
+    }
+  
+    if(item == "survived") {
+     # print("Inside rhythm")
+      rat <- df1[df1$rat == 1,]
+      norat <- df1[df1$rat == 0,]
+    
+      xdf <- data.frame(
+        varInt = c(rat$sumsurvived, rat$sumsurvivedNK, rat$sumdied),
+        novarInt = c(norat$sumsurvived, norat$sumsurvivedNK, norat$sumdied),
+        stringsAsFactors = F
+      )
+      #print(xdf)
+      chi = chisq.test(xdf)
+      #print(specify_decimal(chi$p.value,2))
+    return(specify_decimal(chi$p.value,2))
+    }
+  
+    if(item == "prehosp") {
+     # print("Inside rhythm")
+      rat <- df1[df1$rat == 1,]
+      norat <- df1[df1$rat == 0,]
+    
+      xdf <- data.frame(
+        varInt = c(rat$sumROLE, rat$sumROLEno10, rat$sumED),
+        novarInt = c(norat$sumROLE, norat$sumROLEno10, norat$sumED),
+        stringsAsFactors = F
+      )
+      
+
+      chi = chisq.test(xdf)
+      #print(specify_decimal(chi$p.value,2))
+    return(specify_decimal(chi$p.value,2))
+  }
+
+  if(item == "age" | item == "arrest2crew") {
+    wilcox = TRUE
+  }
+  
+  if(wilcox) {
+   # print("Wilcox")
+    w <- wilcox.test(df[[item]]~df$rat)
+   # print(specify_decimal(w$p.value,2))
+    pval = specify_decimal(w$p.value,2)
+
+    return(pval)
+  }
+  else {
+      #print("CHI")
+      xdf <- data.frame(
+        varInt = c(df1[[item]][df1$rat == 0], df1[[item]][df1$rat == 1]),
+        novarInt = c(nrow(df[df$rat==0,])-df1[[item]][df1$rat == 0], nrow(df[df$rat==1,])-df1[[item]][df1$rat == 1]),
+        stringsAsFactors = F
+      )
+      #print(xdf)
+      chi = chisq.test(xdf)
+     # print(chi)
+    return(specify_decimal(chi$p.value,2))
+  }
+  
+
+}
+
+summarydfFn <- function(summaryTable, whatSwitch = "") {
+  
+  if(whatSwitch == "") {
+    #print("Printing variables")
+    Variable <- c(
+      "n (%)",
+      "Median age (IQR) years",
+      "Male n (%)",
+      #"Female n (%)",
+      "Bystander CPR n (%)",
+      "Median response time by crew mins (IQR)",
+      "Median response time by RAT mins (IQR)",
+      "Unwitnessed arrests",
+      "Witnessed arrests",
+      "Witnessed arrest by EMS",
+      "Witnessed arrest by bystander",
+      "Shockable",
+      "PEA",
+      "Asystole",
+      "Private",
+      "Public",
+      "Nursing home",
+      "Ambulance",
+      "ROLE after >10 mins resus",
+      "ROLE after <10 mins resus",
+      "Transported to hospital",
+      "ROSC at hospital",
+      "Survived",
+      "Survival status unknown",
+      "Died in hospital"
+    )
+    return(Variable)
+  } else if(whatSwitch == "p.value") {
+    variable = c(
+      " ",
+      stats(dataSummary, summaryTable, "age"),
+      stats(dataSummary, summaryTable, "malenum"),
+      stats(dataSummary, summaryTable, "sumfemale"),
+      stats(dataSummary, summaryTable, "sumbystandercpr"),
+      stats(dataSummary, summaryTable, "witnessed")," "," "," ",
+      #stats(dataSummary, summaryTable, "sumunwitnessed"),
+      #stats(dataSummary, summaryTable, "sumwitnessed"),
+      #stats(dataSummary, summaryTable, "sumwitnessedbyEMS"),
+      #stats(dataSummary, summaryTable, "sumwitnessedbyBY"),
+      stats(dataSummary, summaryTable, "arrest2crew"),
+      " ",
+      stats(dataSummary, summaryTable, "rhythm")," "," ",
+      #stats(dataSummary, summaryTable, "rhythmShock"),
+      #stats(dataSummary, summaryTable, "rhythmPEA"),
+      #stats(dataSummary, summaryTable, "rhythmASYS"),
+      stats(dataSummary, summaryTable, "location")," "," "," ",
+      #stats(dataSummary, summaryTable, "locHome"),
+      #stats(dataSummary, summaryTable, "locPublic"),
+      #stats(dataSummary, summaryTable, "locNH"),
+      #stats(dataSummary, summaryTable, "locAmb"),
+      stats(dataSummary, summaryTable, "prehosp")," "," ",
+      #stats(dataSummary, summaryTable, "sumROLE"),
+      #stats(dataSummary, summaryTable, "sumROLEno10"),
+      #stats(dataSummary, summaryTable, "sumED"),
+      stats(dataSummary, summaryTable, "sumrosced"),
+      stats(dataSummary, summaryTable, "survived")," "," "
+      #stats(dataSummary, summaryTable, "sumsurvived"),
+      #stats(dataSummary, summaryTable, "sumsurvivedNK"),
+      #stats(dataSummary, summaryTable, "sumdied")
+    )
+  } else {
+    i = 3
+   # survivalResults = ""
+    if(whatSwitch == "No RAT") {
+      i = 1
+    }
+    else if(whatSwitch == "RAT") {
+      i = 2
+    }
+    #print(summaryTable$medage[i])
+    
+    variable = c(
+      paste(summaryTable$n[i]," (",summaryTable$propn[i],')',sep=""),
+      paste(summaryTable$medage[i]," (",summaryTable$LQRage[i],'--',summaryTable$UQRage[i],')',sep=""),
+      paste(summaryTable$malenum[i]," (",summaryTable$male[i],')',sep=""),
+      #paste(summaryTable$sumfemale[i]," (",summaryTable$female[i],')',sep=""),
+      paste(summaryTable$sumbystandercpr[i]," (",summaryTable$bystandercpr[i],')',sep=""),
+      paste(summaryTable$medarrest2crew[i]," (",summaryTable$LQRarrest2crew[i],'--',summaryTable$UQRarrest2crew[i],')',sep=""),
+      paste(summaryTable$medarrest2rat[i]," (",summaryTable$LQRarrest2rat[i],'--',summaryTable$UQRarrest2rat[i],')',sep=""),
+      paste(summaryTable$sumunwitnessed[i]," (",summaryTable$unwitnessed[i],')',sep=""),
+      paste(summaryTable$sumwitnessed[i]," (",summaryTable$witnessed[i],')',sep=""),
+      paste(summaryTable$sumwitnessedbyEMS[i]," (",summaryTable$propwitnessedbyEMS[i],')',sep=""),
+      paste(summaryTable$sumwitnessedbyBY[i]," (",summaryTable$propwitnessedbyBY[i],')',sep=""),
+      paste(summaryTable$rhythmShock[i]," (",summaryTable$proprhythmShock[i],')',sep=""),
+      paste(summaryTable$rhythmPEA[i]," (",summaryTable$proprhythmPEA[i],')',sep=""),
+      paste(summaryTable$rhythmASYS[i]," (",summaryTable$proprhythmASYS[i],')',sep=""),
+      paste(summaryTable$locHome[i]," (",summaryTable$proplocHome[i],')',sep=""),
+      paste(summaryTable$locPublic[i]," (",summaryTable$proplocPublic[i],')',sep=""),
+      paste(summaryTable$locNH[i]," (",summaryTable$proplocNH[i],')',sep=""),
+      paste(summaryTable$locAmb[i]," (",summaryTable$proplocAmb[i],')',sep=""),
+      paste(summaryTable$sumROLE[i]," (",summaryTable$propROLE[i],')',sep=""),
+      paste(summaryTable$sumROLEno10[i]," (",summaryTable$propROLEno10[i],')',sep=""),
+      paste(summaryTable$sumED[i]," (",summaryTable$propED[i],')',sep=""),
+      paste(summaryTable$sumrosced[i]," (",summaryTable$proprosced[i],')',sep=""),
+      paste(summaryTable$sumhospsurvived[i]," (",summaryTable$prophospsurvived[i],')',sep=""),
+      paste(summaryTable$sumhospunk[i]," (",summaryTable$prophospunk[i],')',sep=""),
+      paste(summaryTable$sumhospdied[i]," (",summaryTable$prophospdied[i],')',sep="")
+    )
+    
+    return(variable)
+    
+  }
+  
+}
+
+summarydemodf <- data.frame(
+  Variable = summarydfFn(summaryTable),
+  RAT = summarydfFn(summaryTable, "RAT"),
+  `No RAT` = summarydfFn(summaryTable, "No RAT"),
+  All = summarydfFn(summaryTable, "All"),
+  #`p-value` = summarydfFn(summaryTable, "p.value"),
+  stringsAsFactors = F, check.names = F
+)
+
+library(knitr)
+library(kableExtra)
+#format = "html"
+kable(summarydemodf, booktabs = T, format=format, caption="Demographic details of cardiac arrests") %>%
+  kable_styling("striped") %>%
+  group_rows("Witness status n (%)", 7, 10) %>%
+  group_rows("Presenting rhythm n (%)", 11, 13) %>%
+  group_rows("Location n (%)", 14, 17) %>%
+  group_rows("Prehospital measure n (%)",18,20) %>%
+  group_rows("Hospital/Survival measures n (%)",21,24) %>%
+  footnote(general = "NA: Not applicable")
+
+
+  # Calculate some RAT stats
+  ratinfo <- dataSummary %>%
+    filter(rat == 1) %>%
+    group_by(ratid) %>%
+    summarise(
+      n = n()
+    )
+    
+
+```
+
+```{r figure1, echo=F, message=F, warning=F, fig.cap='Patients suffering an OHCA in the study period', cache=F}
+  # NOTE: To get this to work for PDF documents, you need to install PhantomJS 
+  # https://bookdown.org/yihui/bookdown/html-widgets.html
+  library(DiagrammeR)
+  df <- readRDS('summary-info.rds')
+  vizData <- data.frame(
+    total = paste("Total no. cardiac arrests\nn =",formatC(df$total, format="d", big.mark = ","),sep=""),
+    missing = "Missing records\nn = 12",
+    afterremove = paste("Remaining records\nn =",formatC(df$afterremove, format="d", big.mark = ","),sep=""),
+    resusbycrew = paste("Crew resuscitated patient\nn = ",formatC(df$resusbycrew, format="d", big.mark = ","), sep=""),
+    noresusbycrew = paste("Resuscitation not\nundertaken by crew\n n = ", formatC(df$afterremove-df$resusbycrew, format="d", big.mark = ","),sep=""),
+    excluded = paste("Excluded records:\nTraumatic arrest n = ",formatC(df$resusbycrew-df$notrauma, format="d", big.mark = ","),"\nIn-hospital arrest n = ",formatC(df$notrauma-df$nohosp, format="d", big.mark = ","),sep=""),
+    include = paste("Included cardiac arrests\nn = ",formatC(df$nohosp, format="d", big.mark = ","),sep=""),
+    rat = paste("RAT attended\ncardiac arrest\nn = ",formatC(summaryTable$n[2], format="d", big.mark = ","),sep=""),
+    norat = paste("No RAT at\ncardiac arrest\nn = ",formatC(summaryTable$n[1], format="d", big.mark = ","),sep=""),
+    rated = paste("Hospital\nn = ",formatC(summaryTable$sumED[2], format="d", big.mark = ","),sep=""),
+    ratrole = paste("ROLE\n>10mins\nn = ",formatC(summaryTable$sumROLE[2], format="d", big.mark = ","),sep=""),
+    norated = paste("Hospital\nn = ",formatC(summaryTable$sumED[1], format="d", big.mark = ","),sep=""),
+    noratrole = paste("ROLE\n>10mins\nn = ",formatC(summaryTable$sumROLE[1], format="d", big.mark = ","),sep=""),
+    ratrosced = paste("ROSC\n at hospital\nn = ",formatC(summaryTable$sumrosced[2], format="d", big.mark = ","),sep=""),
+    ratnorosced = paste("No ROSC\n at hospital\nn = ",formatC(summaryTable$sumnorosced[2], format="d", big.mark = ","),sep=""),
+    noratrosced = paste("ROSC\n at hospital\nn = ",formatC(summaryTable$sumrosced[1], format="d", big.mark = ","),sep=""),
+    noratnorosced = paste("No ROSC\n at hospital\nn = ",formatC(summaryTable$sumnorosced[1], format="d", big.mark = ","),sep=""),
+    ratsurv = paste("Survived\nn = ",formatC(summaryTable$sumratroscedsurvived[2], format="d", big.mark = ","),sep=""),
+    ratdied = paste("Died\nn = ",formatC(summaryTable$sumratrosceddied[2], format="d", big.mark = ","),sep=""),
+    ratuk = paste("Unknown\nn = ",formatC(summaryTable$sumratroscuk[2], format="d", big.mark = ","),sep=""),
+    ratnrsurv = paste("Survived\nn = ",formatC(summaryTable$sumratnoroscedsurvived[2], format="d", big.mark = ","),sep=""),
+    ratnrdied = paste("Died\nn = ",formatC(summaryTable$sumratnorosceddied[2], format="d", big.mark = ","),sep=""),
+    ratnruk = paste("Unknown\nn = ",formatC(summaryTable$sumratnoroscuk[2], format="d", big.mark = ","),sep=""),
+    noratsurv = paste("Survived\nn = ",formatC(summaryTable$sumnoratroscedsurvived[1], format="d", big.mark = ","),sep=""),
+    noratdied = paste("Died\nn = ",formatC(summaryTable$sumnoratrosceddied[1], format="d", big.mark = ","),sep=""),
+    noratuk = paste("Unknown\nn = ",formatC(summaryTable$sumnoratroscuk[1], format="d", big.mark = ","),sep=""),
+    noratnrsurv = paste("Survived\nn = ",formatC(summaryTable$sumnoratnoroscedsurvived[1], format="d", big.mark = ","),sep=""),
+    noratnrdied = paste("Died\nn = ",formatC(summaryTable$sumnoratnorosceddied[1], format="d", big.mark = ","),sep=""),
+    noratnruk = paste("Unknown\nn = ",formatC(summaryTable$sumnoratnoroscuk[1], format="d", big.mark = ","),sep=""),
+    ratrole10 = paste("ROLE\n<=10 mins\nn = ",formatC(summaryTable$sumROLEno10[2], format="d", big.mark = ","),sep=""),
+    noratrole10 = paste("ROLE\n<=10 mins\nn = ",formatC(summaryTable$sumROLEno10[1], format="d", big.mark = ","),sep=""),
+
+    stringsAsFactors = F
+  )
+  
+  DiagrammeR::grViz(diagram="
+    digraph nicegraph {
+    
+    # nodes
+    node [shape = box, fontname = Helvetica]
+    total; afterremove; resusbycrew; included; rat; norat; rated; ratrole; norated; noratrole; ratrosced; ratnorosced; noratrosced; noratnorosced; ratsurv; ratdied; ratuk; ratnrsurv; ratnrdied; ratnruk; noratsurv; noratdied; noratuk; noratnrsurv; noratnrdied; noratnruk; ratrole10; noratrole10
+  
+    node [shape = box, color= red, fontname = Helvetica]
+    missing; excluded; noresusbycrew
+  
+    edge [color = black]
+    total->missing
+    total->afterremove
+    afterremove->resusbycrew
+    afterremove->noresusbycrew
+    resusbycrew->excluded
+    resusbycrew->included
+    included->rat
+    included->norat
+    rat->rated
+    rat->ratrole
+    rat->ratrole10
+    norat->norated
+    norat->noratrole
+    norat->noratrole10
+    rated->ratrosced
+    rated->ratnorosced
+    norated->noratrosced
+    norated->noratnorosced
+    ratrosced->ratsurv
+    ratrosced->ratdied
+    ratrosced->ratuk
+    ratnorosced->ratnrsurv
+    ratnorosced->ratnrdied
+    ratnorosced->ratnruk
+    noratrosced->noratsurv
+    noratrosced->noratdied
+    noratrosced->noratuk
+    noratnorosced->noratnrsurv
+    noratnorosced->noratnrdied
+    noratnorosced->noratnruk
+  
+    # define ranks
+    subgraph {
+      rank = same; missing; afterremove
+    }
+  
+    # define labels using Graphviz substitution
+    total   [label = '@@1-1']
+    missing [label = '@@1-2']
+    afterremove [label = '@@1-3']
+    resusbycrew [label = '@@1-4']
+    noresusbycrew [label = '@@1-5']
+    excluded [label = '@@1-6']
+    included [label = '@@1-7']
+    rat [label = '@@1-8']
+    norat [label = '@@1-9']
+    rated [label = '@@1-10']
+    ratrole [label = '@@1-11']
+    norated [label = '@@1-12']
+    noratrole [label = '@@1-13']
+    ratrosced [label = '@@1-14']
+    ratnorosced [label = '@@1-15']
+    noratrosced [label = '@@1-16']
+    noratnorosced [label = '@@1-17']
+    ratsurv [label = '@@1-18']
+    ratdied [label = '@@1-19']
+    ratuk [label = '@@1-20']
+    ratnrsurv [label = '@@1-21']
+    ratnrdied [label = '@@1-22']
+    ratnruk [label = '@@1-23']
+    noratsurv [label = '@@1-24']
+    noratdied [label = '@@1-25']
+    noratuk [label = '@@1-26']
+    noratnrsurv [label = '@@1-27']
+    noratnrdied [label = '@@1-28']
+    noratnruk [label = '@@1-29']
+    ratrole10 [label = '@@1-30']
+    noratrole10 [label = '@@1-31']
+    }  
+   [1]: vizData
+  ")
+  
+  totalNoED <- summaryTable$sumED[1] + summaryTable$sumED[2]
+
+```
+
+Between the 1st October, 2015 and 30th September, 2017, there were `r formatC(df$total, format="d", big.mark = ",")` cardiac arrests that were attended by Yorkshire Ambulance Service. After removing 12 cases where no PCR could be located, `r formatC(df$afterremove, format="d", big.mark = ",")` remained. There were `r formatC(df$afterremove-df$resusbycrew, format="d", big.mark = ",") ` patients who had no resuscitated attempted by YAS ambulance personnel, and `r formatC(df$resusbycrew, format="d", big.mark = ",")` cardiac arrests where resuscitation was attempted. Another `r formatC(df$resusbycrew-df$nohosp, format="d", big.mark = ",")` were removed since the cardiac arrest was either of traumatic origin (`r formatC(df$resusbycrew-df$notrauma, format="d", big.mark = ",")` incidents), or was an in-hospital cardiac arrest (`r formatC(df$notrauma-df$nohosp, format="d", big.mark = ",")` incidents). This resulted in `r formatC(df$nohosp, format="d", big.mark = ",")` cardiac arrests suitable for inclusion in this evaluation (Figure \@ref(fig:figure1)).
+
+During the 2-year data collection period, `r length(unique(dataSummary$ratid[!is.na(dataSummary$ratid)]))`/158 (`r round((length(unique(dataSummary$ratid[!is.na(dataSummary$ratid)]))/158)*100,1)`%) RATs attended `r formatC(nrow(dataSummary[dataSummary$rat == 1,]), format="d", big.mark = ",")`/`r formatC(df$nohosp, format="d", big.mark = ",")` (`r round((nrow(dataSummary[dataSummary$rat == 1,])/nrow(dataSummary))*100,1)`%) incidents, with each RAT attending a median of `r median(ratinfo$n)` cardiac arrests (IQR `r paste(fivenum(ratinfo$n)[2],fivenum(ratinfo$n)[4], sep = "--")`, minimum `r min(ratinfo$n)`, maximum `r max(ratinfo$n)`). The demographics of the two patient groups (RAT/non-RAT) were similar (Table \@ref(tab:demotable)), although there were several significant differences in the distribution of patient demographic and OHCA factors between the RAT attended and non-RAT attended OHCAs. 
+
+RATs attended OHCAs with slightly younger patients (median `r summaryTable$medage[2]`  years vs
+`r summaryTable$medage[1]` years), a higher proportion of bystander-witnessed arrests (`r summaryTable$propwitnessedbyBY[2]`%
+vs `r summaryTable$propwitnessedbyBY[1]`%) and were more likely to terminate an OHCA within 10 minutes of arriving on scene (`r summaryTable$propROLEno10[2]` vs `r summaryTable$propROLEno10[1]`). Conversely, in the non-RAT OHCA group, there was a significantly higher proportion of witnessed arrests by a member of the ambulance service (`r summaryTable$propwitnessedbyEMS[1]`% vs `r summaryTable$propwitnessedbyEMS[2]`%), and cardiac arrests that occurred in an ambulance (`r summaryTable$proplocAmb[1]`% vs `r summaryTable$proplocAmb[2]`%).
+
+There were `r formatC(totalNoED, format="d", big.mark = ",")` patients who were conveyed to hospital, although the survival outcome for `r missdf$n[3]` incidents was intially unknown. Clinical audit had not identified `r missdf$n[1]` incidents, and a further `r missdf$n[2]` OHCAs that had been identified by clinical audit, received no survival outcome data from the destination hospital. However, as a result of screening of the CAD and review of PRFs, the outcome of a further `r missdf$coroner[3]+missdf$died_in_hosp[3]` was determined, although none of these patients survived to discharge. This resulted in a final total of  `r missdf$Total[3]`/`r formatC(totalNoED, format="d", big.mark = ",")` (`r round(((missdf$Total[3]/totalNoED)*100),1)`%) patients with no surival outcome status.
+
+
+## Roll-out of the RAT scheme
+  
+The RAT scheme was rolled out across the region over the course of the service evaluation, with coverage expanding from the pilot sites. The proportion of cardiac arrests attended during the data collection period is shown in Figure \@ref(fig:ratrollout).
+
+```{r ratrollout, echo=F, message=F, warning=F, fig.width=7, fig.cap="Proportion of cardiac arrests attended by a RAT, stratified by yearly quarter", fig.asp=1.3, fig.align='centre', cache=F}
+
+  library(sf)
+  library(readxl)
+  library(lubridate)
+  library(viridis)
+
+  datadf <-readRDS("rat-postcode.rds") %>%
+  mutate(
+    quarter = factor(quarter(dmy(date), with_year=T), labels = c("Quarter 4, 2015", "Quarter 1, 2016", "Quarter 2, 2016","Quarter 3, 2016", "Quarter 4, 2016", "Quarter 1, 2017", "Quarter 2, 2017", "Quarter 3, 2017"))
+  ) %>%
+  group_by(outbound, quarter) %>%
+  summarise(
+    date = first(date),
+    n = n(),
+    rat = sum(rat == 1),
+    prop = round((rat/n)*100)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    outbound = as.factor(outbound),
+    bin10 = cut(prop, seq(0,110,10), right = F)
+  ) %>%
+  arrange(date) %>%
+  mutate(
+    quarter = factor(quarter, labels = c("Quarter 4, 2015", "Quarter 1, 2016", "Quarter 2, 2016","Quarter 3, 2016", "Quarter 4, 2016", "Quarter 1, 2017", "Quarter 2, 2017", "Quarter 3, 2017"))
+  )
+  
+  yorkshire <- st_read("yorks-wgs84/yorks-wgs84.shp", stringsAsFactors = F, quiet=T)
+  combinedf <- merge(yorkshire, datadf, by.x = "name", by.y = "outbound")
+  # York 53.958001, -1.082473#
+  # Sheffield 53.383174, -1.459890
+  # Scarborough 54.287073, -0.387367
+  # Leeds 53.790487, -1.542458
+  # Hull 53.739297, -0.328037
+  # Doncaster 53.524345, -1.137412
+  # Harrogate 53.994770, -1.544028
+  lon<-c(-1.082473, -1.137412, -1.542458, -0.328037, -1.544028)
+  lat<-c(53.958001, 53.524345, 53.790487, 53.739297, 53.994770)
+  Cities<-c('York', 'Doncaster', 'Leeds', "Hull", "Harrogate")
+  
+  xy.cities<-data.frame(lon,lat,Cities, stringsAsFactors = F)
+  
+  ratmapBin10Shapes <- ggplot(yorkshire) +
+    geom_sf(data = combinedf, aes(fill = bin10, frame = quarter), lwd=0) +
+    guides(fill = guide_legend(reverse=T)) + 
+    geom_point(aes(x = lon, y = lat, shape=Cities), fill="red",colour="white",size = 2, data=xy.cities) +
+    facet_wrap(~quarter, ncol=2, nrow=4, dir="v") +
+    scale_shape_manual(values=c(21,22,23,24, 25)) +
+    scale_fill_viridis(discrete=T, name="Prop. cardiac\narrests with\nRAT (%)",
+                       breaks = levels(datadf$bin10),
+                       labels = c("0-9","10-19","20-29","30-39","40-49","50-59","60-69","70-79","80-89","90-99","100")) +
+    theme_minimal() +
+    labs(x = " ", y = " ") +
+    theme(axis.text = element_blank(), 
+          panel.grid.minor = element_blank(), panel.grid.major = element_line(colour="white"), panel.background = element_blank(), axis.line = element_blank(), legend.title=element_text(size=10)) +
+  guides(shape = guide_legend(override.aes = list(size = 4)))
+  
+  ratmapBin10Shapes
+
+```
+
+
+
+```{r removelessthan10, echo=F, message=F, warning=F}
+
+  dataSummary <- dataSummary %>%
+    #filter(rolenoresus10 == 0)
+  filter(ratrole == 0)
+
+```
+
+```{r simplesurvival, echo=F, message=F, warning=F}
+  twobytwo <- function(data, outcome) {
+    x <- data.frame()
+    if(outcome == "SURV") {
+      dataNoSurv <- data %>%
+        mutate(
+          survived = as.numeric(survived)
+        )
+      x <- table(data.frame(RAT = data$rat, Survived = data$survived, stringsAsFactors = F))
+      dimnames(x) <- list(RAT = c("No", "Yes"), Survived = c("No", "Yes"))
+    }
+    else {
+      x <- table(data.frame(Rat = data$rat, ROSCED = data$rosced, stringsAsFactors = F))
+      dimnames(x) <- list(RAT = c("No", "Yes"), `ROSC ED` = c("No", "Yes"))
+    }
+    oddsR <- epitools::oddsratio(x)
+    
+    return(oddsR)
+  }
+
+  simpleSURV <- twobytwo(dataSummary, "SURV")
+  #kable(data.frame(RAT = c("No","Yes","Total"),simpleSURV$data, stringsAsFactors = F, row.names = NULL), booktabs = T, format=format, caption="Two-by-two table of RAT presence vs Survival to discharge") %>%
+  #  add_header_above(c(" ","Survived to discharge" = 2," "))
+  
+```
+
+```{r simplerosced, echo=F, message=F, warning=F}
+
+  simpleROSC <- twobytwo(dataSummary, "")
+  #kable(data.frame(RAT = c("No","Yes","Total"),simpleROSC$data, stringsAsFactors = F, row.names = NULL), booktabs = T, format=format, caption="Two-by-two table of RAT presence vs ROSC at hospital") %>%
+ #   add_header_above(c(" ","ROSC at hospital" = 2," "))
+  
+```
+
+```{r simpleOR, echo=F, message=F, warning=F}
+
+  simpleORdf <- data.frame(
+    Outcome = c("Survival to 30 days", "ROSC at hospital"),
+    `Odds ratio` = round(c(simpleSURV$measure[2], simpleROSC$measure[2]),2),
+    `95% CI` = c(
+      paste(round(simpleSURV$measure[4],2),round(simpleSURV$measure[6],2), sep="--"),
+      paste(round(simpleROSC$measure[4],2),round(simpleROSC$measure[6],2), sep="--")
+    ),
+    `p-value` = round(c(simpleSURV$p.value[2], simpleROSC$p.value[2]),2),
+    stringsAsFactors = F, check.names = F
+  )
+
+  #kable(simpleORdf, booktabs = T, format=format, caption="Unadjusted odds ratios and 95$\\%$ confidence intervals for primary and secondary outcomes")
+  
+  saveRDS(simpleORdf, "simpleORdf.rds")
+  
+  # Unadjusted odds ratios were calculated from 2x2 tables of the primary outcome of survival to 30 days (Table \@ref(tab:simplesurvival)), and secondary outcome of ROSC at ED (Table \@ref(tab:simplerosced)). The resulting odds ratio (OR) calculations and 95% confidence intervals (95% CI) can be seen on Table \@ref(tab:simpleOR), The unadjusted odds ratios suggest that the odds of surviving to discharge with a RAT present, is `r round(simpleSURV$measure[2],2)` times the odds of surviving to discharge if they were not present.
+  
+  #The unadjusted odds ratio (OR) calculations and 95% confidence intervals (95% CI) can be seen on Table \@ref(tab:simpleOR). Note that these exclude OHCAs where ROLE was implemented in 10 minutes or less. The unadjusted odds ratios suggest that the odds of surviving to discharge with a RAT present, is `r round(simpleSURV$measure[2],2)` times the odds of surviving to discharge if they were not present.
+  
+```
+
+
+```{r model1, echo=F, message=F, warning=F, cache=F}
+
+
+  data <- dataSummary %>%
+  mutate(
+    # Change order of location since private is most common
+    loc = factor(loc, levels = c("private", "public", "nh", "amb")),
+    survived = as.numeric(survived),
+    witnessed = factor(
+      ifelse(witness==0,
+      "unwitnessed",
+      ifelse(witness == 1 & arrest2crew < 0,"EMS","bystander")), levels = c("unwitnessed","bystander", "EMS"))
+    #arrest2rat = ifelse(is.na(arrest2rat), 999, arrest2rat)
+  )
+
+  get.or.se <- function(model, round=F) {
+  # Based on: https://www.andrewheiss.com/blog/2016/04/25/convert-logistic-regression-standard-errors-to-odds-ratios-with-r/
+  x <- broom::tidy(model) %>% 
+    mutate(
+      or = exp(estimate),
+      var.diag = diag(vcov(model)),
+      or.se = sqrt(or^2 * var.diag),
+      p.value = round(p.value, 2)
+    )
+  
+  confintervals = exp(confint_tidy(model))
+  
+  y <- cbind(x, confintervals)
+  
+  if(round) {
+    y <- y %>% mutate_if(is.numeric, funs(round(., 2)))
+    return(y)
+  }
+  
+  return(y)
+  }
+  
+  prettyCI <- function(model,number) {
+  # Function to return 95% CI in the form: (X.XX to X.XX)
+  #x <- paste("(",model$conf.low[number]," to ",model$conf.high[number],")",sep="")
+  x <- paste(model$conf.low[number],model$conf.high[number],sep="--")
+  return(x)
+  }
+  
+  # Model 1 for survival
+  dataSurv <- data %>%
+    filter(!is.na(survived))
+
+  options(scipen = 999)
+  # Exhaustive model selection
+  # See: https://rstudio-pubs-static.s3.amazonaws.com/2897_9220b21cfc0c43a396ff9abf122bb351.html
+  
+  survived_model <- glm(survived ~ 1 + age + gender + rosced + witnessed + bystcpr + rhythm + arrest2crew + rat + loc, family = "binomial", data = dataSurv)
+  
+  rosced_model <- glm(rosced ~ 1 + age + gender + witnessed + bystcpr + rhythm + arrest2crew + rat + loc, family = "binomial", data = data)
+  
+  tidysurvived <- get.or.se(survived_model,T) %>%
+    select(term, or, conf.low, conf.high, p.value)
+
+  tidyrosc <- get.or.se(rosced_model,T) %>%
+    select(term, or, conf.low, conf.high, p.value)
+  
+  specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+  
+  finalmodel1dfSURV <- data.frame(
+    Variable = c("Age","Male gender", "Bystander CPR", "Arrest to Crew arrival time (per elapsed minute)", "Unwitnessed","Witnessed: bystander","Witnessed: EMS", "Asystole","PEA","Shockable","Private","Public","Nursing home", "Ambulance","ROSC at hospital","No RAT present","RAT present","Unadjusted OR"),
+    ORsurvival = c(tidysurvived$or[2], tidysurvived$or[3], tidysurvived$or[7],tidysurvived$or[10], "Reference", tidysurvived$or[5], tidysurvived$or[6], "Reference", tidysurvived$or[8], tidysurvived$or[9], "Reference", tidysurvived$or[12], tidysurvived$or[13], tidysurvived$or[14], tidysurvived$or[4], "Reference",tidysurvived$or[11], simpleORdf$`Odds ratio`[1]),
+    CIsurvival = c(prettyCI(tidysurvived,2), prettyCI(tidysurvived,3), prettyCI(tidysurvived,7),prettyCI(tidysurvived,10),"Reference", prettyCI(tidysurvived,5),prettyCI(tidysurvived,6), "Reference", prettyCI(tidysurvived,8), prettyCI(tidysurvived,9), "Reference", prettyCI(tidysurvived,12), prettyCI(tidysurvived,13), prettyCI(tidysurvived,14),  prettyCI(tidysurvived,4),"Reference", prettyCI(tidysurvived,11), simpleORdf$`95% CI`[1]),
+    pval.survival = c(specify_decimal(tidysurvived$p.value[2],2), specify_decimal(tidysurvived$p.value[3],2), specify_decimal(tidysurvived$p.value[7],2), specify_decimal(tidysurvived$p.value[10],2),"Reference", specify_decimal(tidysurvived$p.value[5],2), specify_decimal(tidysurvived$p.value[6],2), "Reference", specify_decimal(tidysurvived$p.value[8],2), specify_decimal(tidysurvived$p.value[9],2), "Reference", specify_decimal(tidysurvived$p.value[12],2), specify_decimal(tidysurvived$p.value[13],2), specify_decimal(tidysurvived$p.value[14],2), specify_decimal(tidysurvived$p.value[4],2), "Reference",specify_decimal(tidysurvived$p.value[11],2),simpleORdf$`p-value`[1]),
+    stringsAsFactors = F, check.names = F
+  )
+  
+  finalmodel1dfROSC <- data.frame(
+    Variable = c("Age","Male gender", "Bystander CPR", "Arrest to Crew arrival time (per elapsed minute)", "Unwitnessed","Witnessed: bystander","Witnessed: EMS", "Asystole","PEA","Shockable","Private","Public","Nursing home", "Ambulance","No RAT present","RAT present", "Unadjusted OR"),
+    ORrosc = c(tidyrosc$or[2], tidyrosc$or[3], tidyrosc$or[6], tidyrosc$or[9],"Reference", tidyrosc$or[4], tidyrosc$or[5],  "Reference", tidyrosc$or[7], tidyrosc$or[8], "Reference", tidyrosc$or[11], tidyrosc$or[12], tidyrosc$or[13], "Reference", tidyrosc$or[10], simpleORdf$`Odds ratio`[2]),
+    CIrosc = c(prettyCI(tidyrosc,2), prettyCI(tidyrosc,3),prettyCI(tidyrosc,6), prettyCI(tidyrosc,9),"Reference", prettyCI(tidyrosc,4), prettyCI(tidyrosc,5), "Reference", prettyCI(tidyrosc,7), prettyCI(tidyrosc,8), "Reference", prettyCI(tidyrosc,11),prettyCI(tidyrosc,12), prettyCI(tidyrosc,13), "Reference", prettyCI(tidyrosc,10), simpleORdf$`95% CI`[2]),
+    pval.rosc = c(specify_decimal(tidyrosc$p.value[2],2), specify_decimal(tidyrosc$p.value[3],2), specify_decimal(tidyrosc$p.value[6],2),specify_decimal(tidyrosc$p.value[9],2), "Reference", specify_decimal(tidyrosc$p.value[4],2), specify_decimal(tidyrosc$p.value[5],2), "Reference", specify_decimal(tidyrosc$p.value[7],2), specify_decimal(tidyrosc$p.value[8],2), "Reference", specify_decimal(tidyrosc$p.value[11],2), specify_decimal(tidyrosc$p.value[12],2), specify_decimal(tidyrosc$p.value[13],2),  "Reference", specify_decimal(tidyrosc$p.value[10],2), simpleORdf$`p-value`[2]),
+    stringsAsFactors = F, check.names = F
+  )
+  
+  saveRDS(finalmodel1dfSURV, "finalmodel1dfSURV.rds")
+  saveRDS(finalmodel1dfROSC, "finalmodel1dfROSC.rds")
+
+  kable(finalmodel1dfSURV, booktabs = T, format=format, caption="Results of regression modelling of survival to discharge", col.names = c("Variable", "OR", "95% CI", "p-value")) %>%
+    kable_styling("striped",latex_options = "striped") %>%
+   # add_header_above(c(" " = 1, "Survival to discharge" = 3, "ROSC at hospital" = 3)) %>%
+    column_spec(1, width="4cm") %>%
+    group_rows("Witness status", 5, 7) %>%
+    group_rows("Presenting rhythm", 8, 10) %>%
+    group_rows("Location", 11, 14) %>%
+    group_rows("Status at ED", 15, 15) %>%
+    group_rows("RAT",16,18) %>%
+    footnote(general = "NA: Not applicable")
+  
+```
+  
+  
+```{r model2, echo=F, message=F, warning=F, cache=F}
+  kable(finalmodel1dfROSC, booktabs = T, format=format, caption="Results of regression modelling of ROSC on arrival at hospital", col.names = c("Variable", "OR", "95% CI", "p-value")) %>%
+    kable_styling("striped",latex_options = "striped") %>%
+   # add_header_above(c(" " = 1, "Survival to discharge" = 3, "ROSC at hospital" = 3)) %>%
+    column_spec(1, width="4cm") %>%
+    group_rows("Witness status", 5, 7) %>%
+    group_rows("Presenting rhythm", 8, 10) %>%
+    group_rows("Location", 11, 14) %>%
+    #group_rows("Status at ED", 15, 15) %>%
+    group_rows("RAT",15,17) %>%
+    footnote(general = "NA: Not applicable")
+    
+
+```
+
+## Regression models
+
+The outcome of the regression models for survival to discharge and ROSC on arrival at hospital, can be seen in Tables \@ref(tab:model1) and \@ref(tab:model2). These results suggest that a RAT on scene is associated with a slight increase in the odds of survival to 30 days (OR `r finalmodel1dfSURV$ORsurvival[17]`, 95%CI `r finalmodel1dfSURV$CIsurvival[17]`) and odds of ROSC on arrival at hospital (OR `r finalmodel1dfROSC$ORrosc[16]`, 95%CI `r finalmodel1dfROSC$CIrosc[16]`), compared to the odds of not having a RAT present, although neither of these results are statistically significant.
+
+```{r SAmodel1, echo=F, message=F, warning=F, cache=F, include=F}
+
+  survivaldfgorat <- data %>%
+  mutate(
+    survivedbest = as.numeric(ifelse(is.na(survived) & rat == 1,1,ifelse(
+      is.na(survived) & rat == 0, 0, survived
+    )))
+  )
+
+survivaldfboorat <- data %>%
+  mutate(
+    survivedbest = as.numeric(ifelse(is.na(survived) & rat == 1,0,ifelse(
+      is.na(survived) & rat == 0, 1, survived
+    )))
+  )
+
+  survived_modelRAT <- glm(survivedbest ~ 1 + age + gender + rosced + witness + bystcpr + rhythm + arrest2crew + rat + arrest2rat:rat  + loc, family = "binomial", data = survivaldfgorat)
+
+survived_modelBOORAT <- glm(survivedbest ~ 1 + age + gender + rosced + witness + bystcpr + rhythm + arrest2crew + rat + arrest2rat:rat  + loc, family = "binomial", data = survivaldfboorat)
+
+ tidyGoRat <- get.or.se(survived_modelRAT,T) %>%
+    select(term, or, conf.low, conf.high, p.value)
+
+  tidyBooRat <- get.or.se(survived_modelBOORAT,T) %>%
+    select(term, or, conf.low, conf.high, p.value)
+  
+  sensitivityModelDF <- data.frame(
+    Case = c("Best case for RAT","Worst case for RAT"),
+    OR = c(tidyGoRat$or[10], tidyBooRat$or[10]),
+    CI = c(prettyCI(tidyGoRat,10), prettyCI(tidyBooRat,10)),
+    stringsAsFactors = F, check.names = F
+  )
+  
+    kable(sensitivityModelDF, booktabs = T, format=format, caption="Sensitivity analysis", col.names = c("Case", "OR", "95% CI")) %>%
+    kable_styling("striped",latex_options = "striped") 
+  
+
+```
+
+
+```{r sensitivityAnalysis, echo=F, message=F, warning=F, cache=F, include=T}
+  
+ survived_modelSEN <- glm(survived ~ 1 + age + rosced + witnessed + rhythm + rat + loc, family = "binomial", data = dataSurv)
+  
+  rosced_modelSEN <- glm(rosced ~ 1 + age + gender + witnessed + rhythm + arrest2crew + rat, family = "binomial", data = data)
+  
+  tidysurvived <- get.or.se(survived_modelSEN,T) %>%
+    select(term, or, conf.low, conf.high, p.value)
+
+  tidyrosc <- get.or.se(rosced_modelSEN,T) %>%
+    select(term, or, conf.low, conf.high, p.value)
+  
+  specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+  
+  finalmodel1dfSURVsen <- data.frame(
+    Variable = c("Age", "Unwitnessed","Witnessed: bystander","Witnessed: EMS", "Asystole","PEA","Shockable","Private","Public","Nursing home", "Ambulance","ROSC at hospital","No RAT present","RAT present"),
+    ORsurvival = c(tidysurvived$or[2], "Reference", tidysurvived$or[4], tidysurvived$or[5], "Reference", tidysurvived$or[6], tidysurvived$or[7], "Reference", tidysurvived$or[9], tidysurvived$or[10], tidysurvived$or[11], tidysurvived$or[3], "Reference",tidysurvived$or[8]),
+    CIsurvival = c(prettyCI(tidysurvived,2), "Reference", prettyCI(tidysurvived,4), prettyCI(tidysurvived,5),
+                   "Reference", prettyCI(tidysurvived,6),prettyCI(tidysurvived,7), "Reference", prettyCI(tidysurvived,9), prettyCI(tidysurvived,10), prettyCI(tidysurvived,11), prettyCI(tidysurvived,3),"Reference", prettyCI(tidysurvived,8)),
+    pval.survival = c(specify_decimal(tidysurvived$p.value[2],2), "Reference", specify_decimal(tidysurvived$p.value[4],2), specify_decimal(tidysurvived$p.value[5],2), "Reference", specify_decimal(tidysurvived$p.value[6],2), specify_decimal(tidysurvived$p.value[7],2), "Reference", specify_decimal(tidysurvived$p.value[9],2), specify_decimal(tidysurvived$p.value[10],2), specify_decimal(tidysurvived$p.value[11],2), specify_decimal(tidysurvived$p.value[3],2), "Reference",specify_decimal(tidysurvived$p.value[8],2)),
+    stringsAsFactors = F, check.names = F
+  )
+  
+  finalmodel1dfROSCsen <- data.frame(
+    Variable = c("Age","Male gender", "Arrest to Crew arrival time (per elapsed minute)", "Unwitnessed","Witnessed: bystander","Witnessed: EMS", "Asystole","PEA","Shockable","No RAT present","RAT present"),
+    ORrosc = c(tidyrosc$or[2], tidyrosc$or[3], tidyrosc$or[8], "Reference", tidyrosc$or[4], tidyrosc$or[5], "Reference", tidyrosc$or[6], tidyrosc$or[7], "Reference", tidyrosc$or[9]),
+    CIrosc = c(prettyCI(tidyrosc,2), prettyCI(tidyrosc,3),prettyCI(tidyrosc,8),"Reference", prettyCI(tidyrosc,4), prettyCI(tidyrosc,5), "Reference", prettyCI(tidyrosc,6), prettyCI(tidyrosc,7), "Reference", prettyCI(tidyrosc,9)),
+    pval.rosc = c(specify_decimal(tidyrosc$p.value[2],2), specify_decimal(tidyrosc$p.value[3],2), specify_decimal(tidyrosc$p.value[8],2), "Reference", specify_decimal(tidyrosc$p.value[4],2), specify_decimal(tidyrosc$p.value[5],2), "Reference", specify_decimal(tidyrosc$p.value[6],2), specify_decimal(tidyrosc$p.value[7],2), "Reference", specify_decimal(tidyrosc$p.value[9],2)),
+    stringsAsFactors = F, check.names = F
+  )
+  
+  saveRDS(finalmodel1dfSURVsen, "finalmodel1dfSURVsen.rds")
+  saveRDS(finalmodel1dfROSCsen, "finalmodel1dfROSCsen.rds")
+
+``` 
